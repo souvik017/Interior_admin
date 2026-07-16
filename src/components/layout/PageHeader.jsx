@@ -11,7 +11,7 @@ export function PageHeader({ eyebrow, title, description, actions, crumbs = [] }
               {eyebrow}
             </p>
           )}
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-text sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-text sm:text-2xl">
             {title}
           </h1>
           {description && (

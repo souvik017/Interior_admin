@@ -15,7 +15,17 @@ import { addQuotation, nextQuotationId } from '../features/quotations/quotations
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
 
-const emptyLine = () => ({ id: uid(), productId: '', description: '', unit: '', qty: 1, rate: 0 })
+const emptyLine = () => ({ 
+  id: uid(), 
+  productId: '', 
+  name: '',
+  description: '', 
+  category: '',
+  unit: '', 
+  qty: 1, 
+  rate: 0,
+  amount: 0
+})
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 const addDaysISO = (days) => {
@@ -25,12 +35,17 @@ const addDaysISO = (days) => {
 }
 
 const formatMoney = (value) =>
-  `$${(Number(value) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  `${(Number(value) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 const catalogByCategory = productCatalog.reduce((acc, product) => {
   ;(acc[product.category] ||= []).push(product)
   return acc
 }, {})
+
+const categoryOptions = Object.entries(catalogByCategory).map(([category, items]) => ({
+  category,
+  count: items.length,
+}))
 
 export function QuotationFormPage() {
   const navigate = useNavigate()
@@ -48,11 +63,20 @@ export function QuotationFormPage() {
     notes: 'Prices are valid for 14 days from the quote date. 50% advance on approval, balance on completion.',
   })
   const [lines, setLines] = useState([emptyLine()])
+  const [selectedCategory, setSelectedCategory] = useState('')
 
   const updateForm = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
 
   const updateLine = (id, field, value) =>
-    setLines((prev) => prev.map((line) => (line.id === id ? { ...line, [field]: value } : line)))
+    setLines((prev) => prev.map((line) => {
+      if (line.id !== id) return line
+      const updated = { ...line, [field]: value }
+      // Recalculate amount when qty or rate changes
+      if (field === 'qty' || field === 'rate') {
+        updated.amount = (Number(updated.qty) || 0) * (Number(updated.rate) || 0)
+      }
+      return updated
+    }))
 
   const selectProduct = (id, productId) => {
     const product = productCatalog.find((p) => p.id === productId)
@@ -60,8 +84,18 @@ export function QuotationFormPage() {
       prev.map((line) =>
         line.id === id
           ? product
-            ? { ...line, productId, description: product.name, unit: product.unit, rate: product.rate }
-            : { ...line, productId: '' }
+            ? { 
+                ...line, 
+                productId, 
+                name: product.name,
+                description: product.description || product.name,
+                category: product.category,
+                unit: product.unit, 
+                rate: product.rate,
+                qty: 1,
+                amount: product.rate
+              }
+            : { ...line, productId: '', name: '', description: '', category: '', unit: '', rate: 0, amount: 0 }
           : line,
       ),
     )
@@ -77,10 +111,74 @@ export function QuotationFormPage() {
     setLines((prev) => prev.filter((line) => line.id !== id))
   }
 
+  // Auto-add products when category is selected
+  const handleCategorySelect = (category) => {
+    setSelectedCategory(category)
+    
+    if (!category) return
+    
+    const items = catalogByCategory[category] || []
+    if (items.length === 0) return
+
+    setLines((prev) => {
+      const existingProductIds = new Set(prev.map((line) => line.productId).filter(Boolean))
+      const itemsToAdd = items.filter((p) => !existingProductIds.has(p.id))
+
+      if (itemsToAdd.length === 0) {
+        showToast(`All items from ${category} are already in the list.`, 'warning')
+        return prev
+      }
+
+      const newLines = itemsToAdd.map((p) => ({
+        id: uid(),
+        productId: p.id,
+        name: p.name,
+        description: p.description || p.name,
+        category: p.category,
+        unit: p.unit,
+        qty: 1,
+        rate: p.rate,
+        amount: p.rate,
+      }))
+
+      // Drop the single default blank row if the user hasn't touched it yet
+      const base =
+        prev.length === 1 && !prev[0].productId && !prev[0].description.trim() ? [] : prev
+
+      showToast(`Added ${newLines.length} item${newLines.length === 1 ? '' : 's'} from ${category}.`, 'success')
+      return [...base, ...newLines]
+    })
+
+    // Reset the select after adding
+    setTimeout(() => setSelectedCategory(''), 100)
+  }
+
+  const removeCategoryItems = (category) => {
+    const productIdsInCategory = new Set((catalogByCategory[category] || []).map((p) => p.id))
+    setLines((prev) => {
+      const remaining = prev.filter((line) => !productIdsInCategory.has(line.productId))
+      return remaining.length > 0 ? remaining : [emptyLine()]
+    })
+  }
+
+  // Calculate amounts for all rows
   const rows = useMemo(
-    () => lines.map((line) => ({ ...line, amount: (Number(line.qty) || 0) * (Number(line.rate) || 0) })),
+    () => lines.map((line) => ({
+      ...line,
+      amount: (Number(line.qty) || 0) * (Number(line.rate) || 0)
+    })),
     [lines],
   )
+
+  // Categories currently represented in the line items
+  const activeCategoriesInLines = useMemo(() => {
+    const cats = new Set()
+    rows.forEach((row) => {
+      const product = productCatalog.find((p) => p.id === row.productId)
+      if (product) cats.add(product.category)
+    })
+    return Array.from(cats)
+  }, [rows])
 
   const subtotal = useMemo(() => rows.reduce((sum, row) => sum + row.amount, 0), [rows])
   const taxAmount = useMemo(() => subtotal * ((Number(form.taxRate) || 0) / 100), [subtotal, form.taxRate])
@@ -108,10 +206,12 @@ export function QuotationFormPage() {
       discount,
       notes: form.notes,
       status: 'Draft',
-      lines: validLines.map(({ id, productId, description, unit, qty, rate, amount }) => ({
+      lines: validLines.map(({ id, productId, name, description, category, unit, qty, rate, amount }) => ({
         id,
         productId,
+        name,
         description,
+        category,
         unit,
         qty: Number(qty) || 0,
         rate: Number(rate) || 0,
@@ -204,20 +304,56 @@ export function QuotationFormPage() {
             title="Line items"
             subtitle={`${rows.length} row${rows.length === 1 ? '' : 's'}`}
             action={
-              <Button variant="outline" size="sm" icon="add" onClick={addLine}>
-                Add line
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => handleCategorySelect(e.target.value)}
+                  className="field-shell rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
+                >
+                  <option value="">Add from category…</option>
+                  {categoryOptions.map(({ category, count }) => (
+                    <option key={category} value={category}>
+                      {category} ({count} item{count === 1 ? '' : 's'})
+                    </option>
+                  ))}
+                </select>
+                <Button variant="outline" size="sm" icon="add" onClick={addLine}>
+                  Add line
+                </Button>
+              </div>
             }
           >
+            {/* Category chips — quick way to drop an entire category's items at once */}
+            {activeCategoriesInLines.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {activeCategoriesInLines.map((category) => (
+                  <span
+                    key={category}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2/40 px-3 py-1 text-[11px] font-semibold text-muted"
+                  >
+                    {category}
+                    <button
+                      onClick={() => removeCategoryItems(category)}
+                      className="rounded-full p-0.5 hover:bg-danger/10 hover:text-danger transition"
+                      aria-label={`Remove all ${category} items`}
+                    >
+                      <Icon name="close" className="text-xs" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
             <div className="overflow-x-auto -mx-2">
               <table className="w-full min-w-[640px] border-collapse text-left text-xs sm:text-sm">
                 <thead>
                   <tr className="text-[10px] font-bold uppercase tracking-wider text-muted border-b border-border">
-                    <th className="px-2 py-2 w-[34%]">Item</th>
-                    <th className="px-2 py-2 w-[14%]">Unit</th>
-                    <th className="px-2 py-2 w-[12%]">Qty</th>
-                    <th className="px-2 py-2 w-[16%]">Rate</th>
-                    <th className="px-2 py-2 w-[16%] text-right">Amount</th>
+                    <th className="px-2 py-2 w-[22%]">Item</th>
+                    <th className="px-2 py-2 w-[14%]">Category</th>
+                    <th className="px-2 py-2 w-[12%]">Unit</th>
+                    <th className="px-2 py-2 w-[10%]">Qty</th>
+                    <th className="px-2 py-2 w-[12%]">Rate</th>
+                    <th className="px-2 py-2 w-[14%] text-right">Amount</th>
                     <th className="px-2 py-2 w-[8%]" />
                   </tr>
                 </thead>
@@ -225,34 +361,37 @@ export function QuotationFormPage() {
                   {rows.map((row) => (
                     <tr key={row.id}>
                       <td className="px-2 py-2 align-top">
-                        <select
-                          value={row.productId}
-                          onChange={(e) => selectProduct(row.id, e.target.value)}
-                          className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
-                        >
-                          <option value="">Custom item…</option>
-                          {Object.entries(catalogByCategory).map(([category, items]) => (
-                            <optgroup key={category} label={category}>
-                              {items.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
+                        <div className="space-y-1">
+                          <input
+                            type="text"
+                            placeholder="Item name"
+                            value={row.name}
+                            onChange={(e) => {
+                              updateLine(row.id, 'name', e.target.value)
+                              updateLine(row.id, 'description', e.target.value)
+                            }}
+                            className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
+                          />
+                          {row.description && (
+                            <div className="text-[10px] text-muted px-2.5 leading-relaxed">
+                              {row.description}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 align-top">
                         <input
                           type="text"
-                          placeholder="Description"
-                          value={row.description}
-                          onChange={(e) => updateLine(row.id, 'description', e.target.value)}
-                          className="field-shell mt-1.5 w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
+                          placeholder="Category"
+                          value={row.category}
+                          onChange={(e) => updateLine(row.id, 'category', e.target.value)}
+                          className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
                         />
                       </td>
                       <td className="px-2 py-2 align-top">
                         <input
                           type="text"
-                          placeholder="unit"
+                          placeholder="Unit"
                           value={row.unit}
                           onChange={(e) => updateLine(row.id, 'unit', e.target.value)}
                           className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
