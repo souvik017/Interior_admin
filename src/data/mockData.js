@@ -13,6 +13,7 @@ export const sidebarLinks = [
   { label: 'Team', icon: 'groups', to: '/team' },
   { label: 'Purchase Approval', icon: 'shopping_cart', to: '/purchase-approval' },
   { label: 'Invoices', icon: 'receipt_long', to: '/invoices' },
+  { label: 'New Quotation', icon: 'note_add', to: '/quotation-new' },
   { label: 'Quotation View', icon: 'request_quote', to: '/quotation-view' },
   { label: 'Documents', icon: 'folder', to: '/documents' },
   { label: 'Project Analytics', icon: 'bar_chart', to: '/project-analytics' },
@@ -264,6 +265,23 @@ export const analyticsHighlights = [
   { label: 'Utilization', value: '84%', delta: '+6%', tone: 'secondary' },
   { label: 'Delay Risk', value: '7%', delta: '-3%', tone: 'success' },
   { label: 'Client NPS', value: '91', delta: '+4', tone: 'tertiary' },
+]
+
+export const productCatalog = [
+  { id: 'PC-01', name: 'Premium Micro-topping Flooring', category: 'Civil Works', unit: 'sq. ft', rate: 15 },
+  { id: 'PC-02', name: 'Anti-bacterial Wall Prep', category: 'Civil Works', unit: 'sq. ft', rate: 2.5 },
+  { id: 'PC-03', name: 'Structural Modification', category: 'Civil Works', unit: 'L.S.', rate: 4200 },
+  { id: 'PC-04', name: 'False Ceiling (Gypsum)', category: 'Civil Works', unit: 'sq. ft', rate: 8.5 },
+  { id: 'PC-05', name: 'IoT Backbone Integration', category: 'Electrical', unit: 'Set', rate: 3500 },
+  { id: 'PC-06', name: 'Smart Ambient Lighting System', category: 'Electrical', unit: 'Zone', rate: 120 },
+  { id: 'PC-07', name: 'EV Charging Point Infrastructure', category: 'Electrical', unit: 'Unit', rate: 1850 },
+  { id: 'PC-08', name: 'Point Wiring & Conduit', category: 'Electrical', unit: 'Point', rate: 45 },
+  { id: 'PC-09', name: 'Modular Kitchen (HDF)', category: 'Furniture & Finishes', unit: 'Unit', rate: 14200 },
+  { id: 'PC-10', name: 'Custom Wardrobes', category: 'Furniture & Finishes', unit: 'Unit', rate: 1500 },
+  { id: 'PC-11', name: 'TV Unit & Paneling', category: 'Furniture & Finishes', unit: 'Unit', rate: 2200 },
+  { id: 'PC-12', name: 'Soft Furnishings', category: 'Furniture & Finishes', unit: 'Set', rate: 900 },
+  { id: 'PC-13', name: 'Design Consultation', category: 'Services', unit: 'L.S.', rate: 12000 },
+  { id: 'PC-14', name: 'Site Supervision (per month)', category: 'Services', unit: 'Month', rate: 1800 },
 ]
 
 export const quotationLines = [

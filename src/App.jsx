@@ -48,6 +48,12 @@ const ProjectAnalyticsPage = lazy(() =>
 const QuotationViewPage = lazy(() =>
   import('./pages/QuotationViewPage').then((m) => ({ default: m.QuotationViewPage })),
 )
+const QuotationFormPage = lazy(() =>
+  import('./pages/QuotationFormPage').then((m) => ({ default: m.QuotationFormPage })),
+)
+const QuotationPreviewPage = lazy(() =>
+  import('./pages/QuotationPreviewPage').then((m) => ({ default: m.QuotationPreviewPage })),
+)
 const NewProjectPage = lazy(() =>
   import('./pages/NewProjectPage').then((m) => ({ default: m.NewProjectPage })),
 )
@@ -186,6 +192,22 @@ export default function App() {
               element={
                 <ErrorBoundary>
                   <QuotationViewPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/quotation-new"
+              element={
+                <ErrorBoundary>
+                  <QuotationFormPage />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/quotation-view/:id"
+              element={
+                <ErrorBoundary>
+                  <QuotationPreviewPage />
                 </ErrorBoundary>
               }
             />
