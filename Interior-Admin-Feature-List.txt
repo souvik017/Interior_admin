@@ -1,0 +1,155 @@
+================================================================================
+ INTERIOR ADMIN — FEATURE OVERVIEW
+ A management platform for interior design & build studios
+================================================================================
+
+Prepared: 15 July 2026
+
+
+--------------------------------------------------------------------------------
+1. DASHBOARD & OVERVIEW
+--------------------------------------------------------------------------------
+- Personalized welcome with live date and time-of-day greeting
+- At-a-glance KPI cards: total projects, active/running sites, completed
+  projects, pending material requests, today's site updates
+- Each KPI card is clickable and jumps straight to the relevant module
+- Revenue performance chart (monthly trend)
+- Live project pipeline view (Concept, Execution, Procurement, Handover)
+- Recent activity feed (approvals, deliveries, QC checks)
+- Notifications panel with priority color-coding
+- Team/crew load snapshot with clickable team avatars
+- Recent site media uploads gallery
+- AI Smart Forecast card — flags upcoming risks (e.g. labor shortages) with
+  a one-click "Optimize" action
+
+
+--------------------------------------------------------------------------------
+2. PROJECT MANAGEMENT
+--------------------------------------------------------------------------------
+- All Projects list — searchable/filterable by project type, with status,
+  budget, progress %, and project manager for every project
+- New Project creation flow with validation
+- Project Studio — dedicated workspace per project:
+    * Photo/render gallery with status filters
+    * Before/after comparative render viewer
+    * QC (quality control) report generation and download
+    * Full project audit summary download
+    * Live photo upload from the floating action button
+
+
+--------------------------------------------------------------------------------
+3. TASK & WORKFLOW MANAGEMENT
+--------------------------------------------------------------------------------
+- Kanban-style Task Board: To Do / In Progress / Review / Completed
+- Task cards show category, owner, due date, budget, and priority
+- Add Task flow with validation, feeds directly into the correct board column
+- Bulk actions — multi-select tasks and move them to Completed in one step
+
+
+--------------------------------------------------------------------------------
+4. SITE & ROOM OPERATIONS
+--------------------------------------------------------------------------------
+- Site Manager — daily site schedule timeline across all active locations
+- Urgent site issues tracker with one-click "Resolve All"
+- Site Settings — manage the full list of sites, activate/pause, add new sites
+- Room Management — per-room progress tracking (stage, % complete, owner,
+  budget, linked assets)
+- Quick View, Edit, Duplicate, and Archive actions on every room
+- Add Room flow with live grid update
+- AI scheduling suggestions for site work
+
+
+--------------------------------------------------------------------------------
+5. CLIENT & VENDOR MANAGEMENT
+--------------------------------------------------------------------------------
+- Client directory — contact details, linked projects, relationship status,
+  client-since date
+- Vendor directory — category, contact person, performance rating, average
+  lead time, active/inactive status
+
+
+--------------------------------------------------------------------------------
+6. TEAM MANAGEMENT
+--------------------------------------------------------------------------------
+- Full team directory across all disciplines (Design, Site Ops, MEP,
+  Procurement, Management)
+- Each member shows role, site assignment, and availability status
+- Jump directly from Dashboard crew avatars to a team member's profile
+
+
+--------------------------------------------------------------------------------
+7. PROCUREMENT & PURCHASE APPROVALS
+--------------------------------------------------------------------------------
+- Centralized purchase request queue with priority and status filters
+- New Purchase Request flow
+- AI vendor suggestions on open requests
+- One-click Approve & Send / Reject actions
+- Budget breakdown: approved, pending, and rejected spend at a glance
+
+
+--------------------------------------------------------------------------------
+8. FINANCE — QUOTATIONS & INVOICING
+--------------------------------------------------------------------------------
+- Quotation View — itemized line items with subtotal, tax, discount, and
+  grand total
+- Share Quote (copies a shareable link) and Approve Quote actions
+- Invoices list with status tracking: Paid / Due / Overdue
+- Downloadable PDF invoices, generated on demand
+
+
+--------------------------------------------------------------------------------
+9. DOCUMENT MANAGEMENT
+--------------------------------------------------------------------------------
+- Central document library across all projects
+- Categorized by type: Blueprint, Contract, Specification, Permit, Handover
+- Shows file size, uploader, project link, and upload date
+
+
+--------------------------------------------------------------------------------
+10. REPORTING & ANALYTICS
+--------------------------------------------------------------------------------
+- Project Analytics dashboard: revenue, resource utilization, delay risk,
+  and client satisfaction (NPS) highlights
+- Adjustable date range (Week / Month / Quarter / Year)
+- Exportable PDF analytics report
+
+
+--------------------------------------------------------------------------------
+11. CALENDAR & SCHEDULING
+--------------------------------------------------------------------------------
+- Company-wide calendar with color-coded event types: site work, inspections,
+  deliveries, client meetings, internal meetings
+- Every event links back to its project
+
+
+--------------------------------------------------------------------------------
+12. NOTIFICATIONS
+--------------------------------------------------------------------------------
+- Dedicated notifications center
+- Priority/severity color-coding across the app (urgent, warning, success)
+
+
+--------------------------------------------------------------------------------
+13. USER ACCOUNT, ONBOARDING & SECURITY
+--------------------------------------------------------------------------------
+- Sign in / Register / Forgot Password flows
+- My Profile — view and edit personal account details
+- Session-based authentication with persistent login
+- Settings — Notification preferences, Security, and Team access tabs
+- Custom 404 page for any unmatched link
+
+
+--------------------------------------------------------------------------------
+14. PLATFORM & EXPERIENCE
+--------------------------------------------------------------------------------
+- Global command palette (keyboard shortcut) for instant navigation and
+  quick actions from anywhere in the app
+- Light and Dark themes, plus selectable light sub-themes
+- Fully responsive layout — desktop, tablet, and mobile
+- Toast confirmations on every action (save, approve, delete, etc.)
+- Polished loading skeletons and graceful error states throughout
+
+
+================================================================================
+ END OF DOCUMENT
+================================================================================
