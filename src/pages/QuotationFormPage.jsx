@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { motion } from 'framer-motion'
@@ -10,21 +10,26 @@ import { Input } from '../components/forms/Input'
 import { Select } from '../components/forms/Select'
 import { Textarea } from '../components/forms/Textarea'
 import { useToast } from '../components/feedback/Toast'
-import { clientsData, allProjects, productCatalog } from '../data/mockData'
+import { clientsData, allProjects } from '../data/mockData'
 import { addQuotation, nextQuotationId } from '../features/quotations/quotationsSlice'
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`)
 
-const emptyLine = () => ({ 
-  id: uid(), 
-  productId: '', 
+// A single sub-work / line item that lives inside a heading
+const emptyItem = () => ({
+  id: uid(),
   name: '',
-  description: '', 
-  category: '',
-  unit: '', 
-  qty: 1, 
+  unit: '',
+  qty: 1,
   rate: 0,
-  amount: 0
+  amount: 0,
+})
+
+// A heading (e.g. "Colour Work") that holds a list of sub-headings (e.g. "Putty", "Primer", "Painting")
+const emptyHeading = () => ({
+  id: uid(),
+  name: '',
+  items: [emptyItem()],
 })
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
@@ -37,15 +42,163 @@ const addDaysISO = (days) => {
 const formatMoney = (value) =>
   `${(Number(value) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
-const catalogByCategory = productCatalog.reduce((acc, product) => {
-  ;(acc[product.category] ||= []).push(product)
-  return acc
-}, {})
+// Common units for the dropdown
+const commonUnits = [
+  'sq ft',
+  'sq m',
+  'sq yd',
+  'sq ft (built-up)',
+  'sq m (built-up)',
+  'cu ft',
+  'cu m',
+  'cu yd',
+  'ft',
+  'm',
+  'yd',
+  'mm',
+  'cm',
+  'kg',
+  'g',
+  'tonne',
+  'lb',
+  'oz',
+  'litre',
+  'gallon',
+  'pint',
+  'quart',
+  'hour',
+  'day',
+  'week',
+  'month',
+  'year',
+  'unit',
+  'piece',
+  'box',
+  'pack',
+  'roll',
+  'sheet',
+  'gal',
+  'dozen',
+  'pair',
+  'set',
+  'kit',
+  'lot',
+  'meter',
+  'meter²',
+  'meter³',
+  'nos',
+  'each',
+  'per sq ft',
+  'per sq m',
+  'per ft',
+  'per m',
+]
 
-const categoryOptions = Object.entries(catalogByCategory).map(([category, items]) => ({
-  category,
-  count: items.length,
-}))
+// Searchable Unit Dropdown Component
+const UnitDropdown = ({ value, onChange, placeholder = 'Unit' }) => {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const wrapperRef = useRef(null)
+  const inputRef = useRef(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false)
+        setSearchTerm('')
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const filteredUnits = useMemo(() => {
+    if (!searchTerm.trim()) return commonUnits
+    return commonUnits.filter(unit => 
+      unit.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [searchTerm])
+
+  const handleSelect = (unit) => {
+    onChange(unit)
+    setSearchTerm('')
+    setIsOpen(false)
+  }
+
+  const handleInputChange = (e) => {
+    const val = e.target.value
+    setSearchTerm(val)
+    setIsOpen(true)
+    // If user types a custom value, update the parent
+    if (!commonUnits.includes(val) && val.trim()) {
+      onChange(val)
+    }
+  }
+
+  const handleFocus = () => {
+    setIsOpen(true)
+  }
+
+  const toggleDropdown = () => {
+    setIsOpen(!isOpen)
+    if (!isOpen) {
+      setSearchTerm(value)
+    }
+  }
+
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          placeholder={placeholder}
+          value={isOpen ? searchTerm : value}
+          onChange={handleInputChange}
+          onFocus={handleFocus}
+          className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10 pr-8"
+        />
+        <button
+          type="button"
+          onClick={toggleDropdown}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-text transition p-0 flex items-center justify-center"
+          aria-label="Toggle unit dropdown"
+        >
+          <svg 
+            className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+      
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full min-w-[180px] max-h-48 overflow-y-auto rounded-lg border border-border bg-white shadow-lg" style={{ top: '100%', left: 0 }}>
+          {filteredUnits.length > 0 ? (
+            filteredUnits.map((unit) => (
+              <button
+                key={unit}
+                type="button"
+                onClick={() => handleSelect(unit)}
+                className="w-full px-3 py-2 text-left text-xs hover:bg-primary/10 transition-colors border-b border-border/20 last:border-0"
+              >
+                {unit}
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-xs text-muted">
+              No units found. Type to add custom unit.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function QuotationFormPage() {
   const navigate = useNavigate()
@@ -62,139 +215,119 @@ export function QuotationFormPage() {
     discount: 0,
     notes: 'Prices are valid for 14 days from the quote date. 50% advance on approval, balance on completion.',
   })
-  const [lines, setLines] = useState([emptyLine()])
-  const [selectedCategory, setSelectedCategory] = useState('')
+
+  const [headings, setHeadings] = useState([emptyHeading()])
 
   const updateForm = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
 
-  const updateLine = (id, field, value) =>
-    setLines((prev) => prev.map((line) => {
-      if (line.id !== id) return line
-      const updated = { ...line, [field]: value }
-      // Recalculate amount when qty or rate changes
-      if (field === 'qty' || field === 'rate') {
-        updated.amount = (Number(updated.qty) || 0) * (Number(updated.rate) || 0)
-      }
-      return updated
-    }))
+  // ---- Heading level actions ----
 
-  const selectProduct = (id, productId) => {
-    const product = productCatalog.find((p) => p.id === productId)
-    setLines((prev) =>
-      prev.map((line) =>
-        line.id === id
-          ? product
-            ? { 
-                ...line, 
-                productId, 
-                name: product.name,
-                description: product.description || product.name,
-                category: product.category,
-                unit: product.unit, 
-                rate: product.rate,
-                qty: 1,
-                amount: product.rate
-              }
-            : { ...line, productId: '', name: '', description: '', category: '', unit: '', rate: 0, amount: 0 }
-          : line,
-      ),
-    )
-  }
+  const addHeading = () => setHeadings((prev) => [...prev, emptyHeading()])
 
-  const addLine = () => setLines((prev) => [...prev, emptyLine()])
-
-  const removeLine = (id) => {
-    if (lines.length === 1) {
-      showToast('At least one line item is required.', 'warning')
+  const removeHeading = (headingId) => {
+    if (headings.length === 1) {
+      showToast('At least one heading is required.', 'warning')
       return
     }
-    setLines((prev) => prev.filter((line) => line.id !== id))
+    setHeadings((prev) => prev.filter((heading) => heading.id !== headingId))
   }
 
-  // Auto-add products when category is selected
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category)
-    
-    if (!category) return
-    
-    const items = catalogByCategory[category] || []
-    if (items.length === 0) return
+  const updateHeadingName = (headingId, name) =>
+    setHeadings((prev) => prev.map((heading) => (heading.id === headingId ? { ...heading, name } : heading)))
 
-    setLines((prev) => {
-      const existingProductIds = new Set(prev.map((line) => line.productId).filter(Boolean))
-      const itemsToAdd = items.filter((p) => !existingProductIds.has(p.id))
+  // ---- Sub-heading (line item) level actions ----
 
-      if (itemsToAdd.length === 0) {
-        showToast(`All items from ${category} are already in the list.`, 'warning')
-        return prev
-      }
+  const addItem = (headingId) =>
+    setHeadings((prev) =>
+      prev.map((heading) => (heading.id === headingId ? { ...heading, items: [...heading.items, emptyItem()] } : heading)),
+    )
 
-      const newLines = itemsToAdd.map((p) => ({
-        id: uid(),
-        productId: p.id,
-        name: p.name,
-        description: p.description || p.name,
-        category: p.category,
-        unit: p.unit,
-        qty: 1,
-        rate: p.rate,
-        amount: p.rate,
-      }))
+  const removeItem = (headingId, itemId) =>
+    setHeadings((prev) =>
+      prev.map((heading) => {
+        if (heading.id !== headingId) return heading
+        if (heading.items.length === 1) {
+          showToast('Each heading needs at least one sub-heading.', 'warning')
+          return heading
+        }
+        return { ...heading, items: heading.items.filter((item) => item.id !== itemId) }
+      }),
+    )
 
-      // Drop the single default blank row if the user hasn't touched it yet
-      const base =
-        prev.length === 1 && !prev[0].productId && !prev[0].description.trim() ? [] : prev
+  const updateItem = (headingId, itemId, field, value) =>
+    setHeadings((prev) =>
+      prev.map((heading) => {
+        if (heading.id !== headingId) return heading
+        return {
+          ...heading,
+          items: heading.items.map((item) => {
+            if (item.id !== itemId) return item
+            const updated = { ...item, [field]: value }
+            if (field === 'qty' || field === 'rate') {
+              updated.amount = (Number(updated.qty) || 0) * (Number(updated.rate) || 0)
+            }
+            return updated
+          }),
+        }
+      }),
+    )
 
-      showToast(`Added ${newLines.length} item${newLines.length === 1 ? '' : 's'} from ${category}.`, 'success')
-      return [...base, ...newLines]
-    })
+  // ---- Derived totals ----
 
-    // Reset the select after adding
-    setTimeout(() => setSelectedCategory(''), 100)
-  }
-
-  const removeCategoryItems = (category) => {
-    const productIdsInCategory = new Set((catalogByCategory[category] || []).map((p) => p.id))
-    setLines((prev) => {
-      const remaining = prev.filter((line) => !productIdsInCategory.has(line.productId))
-      return remaining.length > 0 ? remaining : [emptyLine()]
-    })
-  }
-
-  // Calculate amounts for all rows
-  const rows = useMemo(
-    () => lines.map((line) => ({
-      ...line,
-      amount: (Number(line.qty) || 0) * (Number(line.rate) || 0)
-    })),
-    [lines],
+  // Recompute amounts live (covers the case where qty/rate come in as strings mid-edit)
+  const computedHeadings = useMemo(
+    () =>
+      headings.map((heading) => {
+        const items = heading.items.map((item) => ({
+          ...item,
+          amount: (Number(item.qty) || 0) * (Number(item.rate) || 0),
+        }))
+        const headingTotal = items.reduce((sum, item) => sum + item.amount, 0)
+        return { ...heading, items, headingTotal }
+      }),
+    [headings],
   )
 
-  // Categories currently represented in the line items
-  const activeCategoriesInLines = useMemo(() => {
-    const cats = new Set()
-    rows.forEach((row) => {
-      const product = productCatalog.find((p) => p.id === row.productId)
-      if (product) cats.add(product.category)
-    })
-    return Array.from(cats)
-  }, [rows])
-
-  const subtotal = useMemo(() => rows.reduce((sum, row) => sum + row.amount, 0), [rows])
+  const subtotal = useMemo(
+    () => computedHeadings.reduce((sum, heading) => sum + heading.headingTotal, 0),
+    [computedHeadings],
+  )
   const taxAmount = useMemo(() => subtotal * ((Number(form.taxRate) || 0) / 100), [subtotal, form.taxRate])
   const discount = Number(form.discount) || 0
   const grandTotal = subtotal + taxAmount - discount
+
+  const totalItemCount = computedHeadings.reduce((sum, heading) => sum + heading.items.length, 0)
 
   const handleSave = () => {
     if (!form.client.trim()) {
       showToast('Please select or enter a client.', 'danger')
       return
     }
-    const validLines = rows.filter((row) => row.description.trim().length > 0 && Number(row.qty) > 0)
-    if (validLines.length === 0) {
-      showToast('Add at least one valid line item.', 'danger')
+
+    const validHeadings = computedHeadings
+      .map((heading) => ({
+        ...heading,
+        items: heading.items.filter((item) => item.name.trim().length > 0 && Number(item.qty) > 0),
+      }))
+      .filter((heading) => heading.name.trim().length > 0 && heading.items.length > 0)
+
+    if (validHeadings.length === 0) {
+      showToast('Add at least one heading with a valid sub-heading.', 'danger')
       return
     }
+
+    // Flatten for storage/printing while keeping the heading label on each line
+    const flatLines = validHeadings.flatMap((heading) =>
+      heading.items.map(({ id, name, unit, qty, rate, amount }) => ({
+        id,
+        heading: heading.name,
+        name,
+        unit,
+        qty: Number(qty) || 0,
+        rate: Number(rate) || 0,
+        amount,
+      })),
+    )
 
     const quotation = {
       id: nextQuotationId(existingQuotations),
@@ -206,17 +339,13 @@ export function QuotationFormPage() {
       discount,
       notes: form.notes,
       status: 'Draft',
-      lines: validLines.map(({ id, productId, name, description, category, unit, qty, rate, amount }) => ({
-        id,
-        productId,
-        name,
-        description,
-        category,
-        unit,
-        qty: Number(qty) || 0,
-        rate: Number(rate) || 0,
-        amount,
+      headings: validHeadings.map((heading) => ({
+        id: heading.id,
+        name: heading.name,
+        items: heading.items,
+        headingTotal: heading.items.reduce((sum, i) => sum + i.amount, 0),
       })),
+      lines: flatLines,
       subtotal,
       taxAmount,
       grandTotal,
@@ -236,7 +365,7 @@ export function QuotationFormPage() {
       <PageHeader
         eyebrow="Sales"
         title="Create quotation"
-        description="Add line items from the catalog or type custom entries — totals are calculated automatically."
+        description="Type a heading (e.g. Colour Work) then add its sub-headings — totals are calculated automatically."
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
@@ -301,138 +430,121 @@ export function QuotationFormPage() {
           </SectionCard>
 
           <SectionCard
-            title="Line items"
-            subtitle={`${rows.length} row${rows.length === 1 ? '' : 's'}`}
+            title="Headings & sub-headings"
+            subtitle={`${headings.length} heading${headings.length === 1 ? '' : 's'} · ${totalItemCount} sub-heading${totalItemCount === 1 ? '' : 's'}`}
             action={
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => handleCategorySelect(e.target.value)}
-                  className="field-shell rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
-                >
-                  <option value="">Add from category…</option>
-                  {categoryOptions.map(({ category, count }) => (
-                    <option key={category} value={category}>
-                      {category} ({count} item{count === 1 ? '' : 's'})
-                    </option>
-                  ))}
-                </select>
-                <Button variant="outline" size="sm" icon="add" onClick={addLine}>
-                  Add line
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" icon="add" onClick={addHeading}>
+                Add heading
+              </Button>
             }
           >
-            {/* Category chips — quick way to drop an entire category's items at once */}
-            {activeCategoriesInLines.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {activeCategoriesInLines.map((category) => (
-                  <span
-                    key={category}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2/40 px-3 py-1 text-[11px] font-semibold text-muted"
-                  >
-                    {category}
+            <div className="space-y-5">
+              {computedHeadings.map((heading, headingIndex) => (
+                <div
+                  key={heading.id}
+                  className="rounded-2xl border border-border bg-surface-2/20 p-3 sm:p-4"
+                >
+                  {/* Heading header — free-text name, e.g. "Colour Work" */}
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                      {headingIndex + 1}
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Heading name (e.g. Colour Work)"
+                      value={heading.name}
+                      onChange={(e) => updateHeadingName(heading.id, e.target.value)}
+                      className="field-shell min-w-[180px] flex-1 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
+                    />
+                    <span className="whitespace-nowrap text-xs font-bold text-muted">
+                      {formatMoney(heading.headingTotal)}
+                    </span>
                     <button
-                      onClick={() => removeCategoryItems(category)}
-                      className="rounded-full p-0.5 hover:bg-danger/10 hover:text-danger transition"
-                      aria-label={`Remove all ${category} items`}
+                      onClick={() => removeHeading(heading.id)}
+                      className="rounded-full p-2 text-muted hover:bg-danger/10 hover:text-danger transition"
+                      aria-label="Remove heading"
                     >
-                      <Icon name="close" className="text-xs" />
+                      <Icon name="close" className="text-base" />
                     </button>
-                  </span>
-                ))}
-              </div>
-            )}
+                  </div>
 
-            <div className="overflow-x-auto -mx-2">
-              <table className="w-full min-w-[640px] border-collapse text-left text-xs sm:text-sm">
-                <thead>
-                  <tr className="text-[10px] font-bold uppercase tracking-wider text-muted border-b border-border">
-                    <th className="px-2 py-2 w-[22%]">Item</th>
-                    <th className="px-2 py-2 w-[14%]">Category</th>
-                    <th className="px-2 py-2 w-[12%]">Unit</th>
-                    <th className="px-2 py-2 w-[10%]">Qty</th>
-                    <th className="px-2 py-2 w-[12%]">Rate</th>
-                    <th className="px-2 py-2 w-[14%] text-right">Amount</th>
-                    <th className="px-2 py-2 w-[8%]" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {rows.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-2 py-2 align-top">
-                        <div className="space-y-1">
-                          <input
-                            type="text"
-                            placeholder="Item name"
-                            value={row.name}
-                            onChange={(e) => {
-                              updateLine(row.id, 'name', e.target.value)
-                              updateLine(row.id, 'description', e.target.value)
-                            }}
-                            className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
-                          />
-                          {row.description && (
-                            <div className="text-[10px] text-muted px-2.5 leading-relaxed">
-                              {row.description}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 align-top">
-                        <input
-                          type="text"
-                          placeholder="Category"
-                          value={row.category}
-                          onChange={(e) => updateLine(row.id, 'category', e.target.value)}
-                          className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
-                        />
-                      </td>
-                      <td className="px-2 py-2 align-top">
-                        <input
-                          type="text"
-                          placeholder="Unit"
-                          value={row.unit}
-                          onChange={(e) => updateLine(row.id, 'unit', e.target.value)}
-                          className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
-                        />
-                      </td>
-                      <td className="px-2 py-2 align-top">
-                        <input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={row.qty}
-                          onChange={(e) => updateLine(row.id, 'qty', e.target.value)}
-                          className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
-                        />
-                      </td>
-                      <td className="px-2 py-2 align-top">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={row.rate}
-                          onChange={(e) => updateLine(row.id, 'rate', e.target.value)}
-                          className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
-                        />
-                      </td>
-                      <td className="px-2 py-2 align-top text-right font-bold text-text">
-                        {formatMoney(row.amount)}
-                      </td>
-                      <td className="px-2 py-2 align-top text-right">
-                        <button
-                          onClick={() => removeLine(row.id)}
-                          className="rounded-full p-2 text-muted hover:bg-danger/10 hover:text-danger transition"
-                          aria-label="Remove line"
-                        >
-                          <Icon name="close" className="text-base" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  {/* Sub-headings for this heading */}
+                  <div className="overflow-visible -mx-1">
+                    <table className="w-full min-w-[560px] border-collapse text-left text-xs sm:text-sm">
+                      <thead>
+                        <tr className="text-[10px] font-bold uppercase tracking-wider text-muted border-b border-border">
+                          <th className="px-2 py-1.5 w-[36%]">Sub-heading</th>
+                          <th className="px-2 py-1.5 w-[16%]">Unit</th>
+                          <th className="px-2 py-1.5 w-[14%]">Qty</th>
+                          <th className="px-2 py-1.5 w-[16%]">Rate</th>
+                          <th className="px-2 py-1.5 w-[14%] text-right">Amount</th>
+                          <th className="px-2 py-1.5 w-[8%]" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {heading.items.map((item) => (
+                          <tr key={item.id}>
+                            <td className="px-2 py-1.5">
+                              <input
+                                type="text"
+                                placeholder="e.g. Putty, Primer, Painting…"
+                                value={item.name}
+                                onChange={(e) => updateItem(heading.id, item.id, 'name', e.target.value)}
+                                className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
+                              />
+                            </td>
+                            <td className="px-2 py-1.5 relative">
+                              <UnitDropdown
+                                value={item.unit}
+                                onChange={(value) => updateItem(heading.id, item.id, 'unit', value)}
+                                placeholder="Unit"
+                              />
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={item.qty}
+                                onChange={(e) => updateItem(heading.id, item.id, 'qty', e.target.value)}
+                                className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
+                              />
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={item.rate}
+                                onChange={(e) => updateItem(heading.id, item.id, 'rate', e.target.value)}
+                                className="field-shell w-full rounded-xl px-2.5 py-2 text-xs font-semibold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/10"
+                              />
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-bold text-text">
+                              {formatMoney(item.amount)}
+                            </td>
+                            <td className="px-2 py-1.5 text-right">
+                              <button
+                                onClick={() => removeItem(heading.id, item.id)}
+                                className="rounded-full p-1.5 text-muted hover:bg-danger/10 hover:text-danger transition"
+                                aria-label="Remove sub-heading"
+                              >
+                                <Icon name="close" className="text-base" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="mt-2 pl-9">
+                    <Button variant="ghost" size="sm" icon="add" onClick={() => addItem(heading.id)}>
+                      Add sub-heading
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
           </SectionCard>
 
@@ -449,6 +561,23 @@ export function QuotationFormPage() {
         {/* Right column: summary */}
         <motion.div variants={itemVariants} className="space-y-6">
           <SectionCard title="Summary" className="xl:sticky xl:top-6">
+            {/* Per-heading breakdown */}
+            {computedHeadings.some((h) => h.name.trim()) && (
+              <div className="mb-4 space-y-1.5">
+                {computedHeadings
+                  .filter((h) => h.name.trim())
+                  .map((h) => (
+                    <div
+                      key={h.id}
+                      className="flex items-center justify-between rounded-xl px-3 py-1.5 text-[11px] font-semibold text-muted"
+                    >
+                      <span className="truncate">{h.name}</span>
+                      <span className="text-text">{formatMoney(h.headingTotal)}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+
             <div className="space-y-2">
               <div className="flex items-center justify-between rounded-2xl border border-border bg-surface-2/30 px-4 py-3 text-xs sm:text-sm font-semibold">
                 <span className="text-muted">Subtotal</span>
